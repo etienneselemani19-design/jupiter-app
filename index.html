@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JUPITER - Assistant IA & Maintenance Avancé</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markup.min.js"></script>
+
+    <!-- Bibliothèque PDF.js pour la lecture et le rendu des documents PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
+
+    <!-- Configuration et chargement de MathJax -->
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>
+      window.MathJax = {
+        tex: {
+          inlineMath: [['$', '$'], ['\\(', '\\)']],
+          displayMath: [['$$', '$$'], ['\\[', '\\]']]
+        }
+      };
+    </script>
+
+    <style>
+        :root { --primary: #007bff; --bg-main: #eef2f3; --sidebar-width: 260px; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg-main); display: flex; height: 100vh; margin: 0; overflow: hidden; }
+        
+        #sidebar { width: var(--sidebar-width); background: #2c3e50; color: white; display: flex; flex-direction: column; padding: 10px; box-sizing: border-box; transition: transform 0.3s; }
+        .sidebar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .btn-new-chat { background: #27ae60; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; margin-bottom: 10px; }
+        #chat-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+        .chat-item { padding: 8px 10px; border-radius: 6px; background: rgba(255,255,255,0.05); cursor: pointer; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; justify-content: space-between; align-items: center; }
+        .chat-item:hover { background: rgba(255,255,255,0.15); }
+        .chat-item.active { background: var(--primary); }
+        .chat-item button { background: none; border: none; color: #fff; cursor: pointer; opacity: 0.6; font-size: 12px; }
+        .chat-item button:hover { opacity: 1; }
+
+        #main-container { flex: 1; display: flex; flex-direction: column; height: 100vh; padding: 10px; box-sizing: border-box; }
+        #chat-container { width: 100%; height: 100%; display: flex; flex-direction: column; background: white; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); padding: 15px; box-sizing: border-box; }
+        
+        .header-area { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        .top-bar { display: flex; justify-content: space-between; align-items: center; }
+        #status-indicator { font-weight: bold; color: #2c3e50; font-size: 14px; }
+        .controls { display: flex; gap: 6px; align-items: center; }
+        
+        select, button, input { padding: 6px 10px; border-radius: 6px; border: 1px solid #ccc; background: #fff; font-size: 13px; }
+        button { cursor: pointer; transition: opacity 0.2s; }
+        button:hover { opacity: 0.8; }
+        .btn-export { background: #8e44ad; color: white; border: none; }
+        
+        .settings-panel { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; background: #f8f9fa; padding: 8px; border-radius: 6px; font-size: 12px; }
+        .api-key-input { flex: 1; font-size: 12px; }
+
+        #chat-history { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding: 10px; border: 1px solid #eee; border-radius: 8px; background: #fdfdfd; margin-bottom: 10px; }
+        
+        .message { padding: 10px 14px; border-radius: 12px; max-width: 85%; position: relative; word-wrap: break-word; line-height: 1.4; font-size: 13.5px; }
+        .user-msg { background: var(--primary); color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
+        .bot-msg { background: #f1f0f0; color: #333; align-self: flex-start; border-bottom-left-radius: 2px; }
+        
+        .bot-msg pre { background: #2d2d2d; color: #ccc; padding: 10px; border-radius: 6px; overflow-x: auto; }
+        .bot-msg code { font-family: Consolas, monospace; font-size: 12px; }
+
+        #file-preview-container { display: none; align-items: center; gap: 8px; margin-bottom: 6px; background: #f1f0f0; padding: 6px 10px; border-radius: 6px; width: fit-content; flex-wrap: wrap; }
+        #file-preview-container img { height: 48px; border-radius: 4px; object-fit: cover; }
+        .file-icon-badge { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; background: #e0e0e0; border-radius: 4px; font-weight: bold; font-size: 18px; color: #333; }
+        .img-tools { display: flex; gap: 4px; }
+        .img-tools button { padding: 2px 6px; font-size: 11px; background: #fff; border: 1px solid #ccc; border-radius: 4px; }
+
+        .quick-replies { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+        .quick-btn { background: #e9ecef; border: 1px solid #ced4da; border-radius: 15px; padding: 4px 10px; font-size: 12px; color: #495057; cursor: pointer; transition: background 0.2s; }
+        .quick-btn:hover { background: #dee2e6; }
+
+        .input-area { display: flex; gap: 8px; align-items: center; }
+        .input-area input[type="text"] { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; outline: none; }
+        .input-area button { padding: 8px 14px; border: none; border-radius: 8px; font-weight: bold; font-size: 14px; }
+        .btn-send { background: #27ae60; color: white; }
+        .btn-mic { background: #3498db; color: white; }
+        .btn-attach { background: #95a5a6; color: white; }
+        
+        .listening-mode { animation: pulse 1.5s infinite; border: 2px solid #27ae60 !important; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0px rgba(39, 174, 96, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(39, 174, 96, 0); } 100% { box-shadow: 0 0 0 0px rgba(39, 174, 96, 0); } }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <div class="sidebar-header">
+            <h3>Discussions</h3>
+        </div>
+        <button class="btn-new-chat" onclick="createNewChat()">+ Nouvelle discussion</button>
+        <div id="chat-list"></div>
+    </div>
+
+    <div id="main-container">
+        <div id="chat-container">
+            <div class="header-area">
+                <div class="top-bar">
+                    <div id="status-indicator">🚀 JUPITER : <span id="status-text" style="color: #27ae60;">En ligne</span></div>
+                    <div class="controls">
+                        <select id="version-selector" onchange="updateVersion(this.value)">
+                            <option value="gemini-3.6-flash">v1 : Flash (gemini-3.6-flash)</option>
+                            <option value="gemini-3.1-pro-preview">v2 : Premium (gemini-3.1-pro-preview)</option>
+                        </select>
+                        <select id="domain-selector" onchange="updateDomain(this.value)">
+                            <option value="general">Général</option>
+                            <option value="coding">Programmation</option>
+                        </select>
+                        <button class="btn-export" onclick="exportHistory()" title="Exporter">💾</button>
+                    </div>
+                </div>
+                <div class="settings-panel">
+                    <input type="password" id="api-key" class="api-key-input" placeholder="Entrez votre clé API Gemini ici..." onchange="saveApiKey(this.value)">
+                    <span id="token-counter">🪙 ~0 tokens</span>
+                </div>
+            </div>
+
+            <div id="chat-history"></div>
+
+            <div id="file-preview-container">
+                <img id="image-preview" src="" alt="Aperçu" style="display:none;">
+                <div id="document-icon" class="file-icon-badge" style="display:none;">📄</div>
+                <span id="file-name" style="font-size: 12px; font-weight: bold;"></span>
+                <div class="img-tools" id="img-tools-bar" style="display:none;">
+                    <button onclick="applyImageEffect('rotate')" title="Pivoter de 90°">🔄 Pivoter</button>
+                    <button onclick="applyImageEffect('grayscale')" title="Convertir en Noir & Blanc">🏁 N&B</button>
+                    <button onclick="applyImageEffect('invert')" title="Inverser les couleurs">☯️ Inverser</button>
+                </div>
+                <button onclick="clearAttachedFile()" style="background:none;border:none;cursor:pointer;color:red;font-weight:bold;">❌</button>
+            </div>
+
+            <div class="quick-replies">
+                <button class="quick-btn" onclick="sendQuickMessage('Explique ce code pas à pas')">⚡ Expliquer le code</button>
+                <button class="quick-btn" onclick="sendQuickMessage('Corrige les erreurs de ce script')">⚡ Corriger une erreur</button>
+                <button class="quick-btn" onclick="sendQuickMessage('Fais une synthèse détaillée de ce document')">📄 Résumer le document</button>
+            </div>
+
+            <div class="input-area">
+                <input type="file" id="file-input" accept="image/*,.pdf,.txt,.js,.py,.html,.css,.json,.csv,.md" style="display:none" onchange="handleFileSelection(event)">
+                <button class="btn-attach" onclick="document.getElementById('file-input').click()" title="Joindre une image ou un document">📎</button>
+                <input type="text" id="user-input" placeholder="Posez votre question...">
+                <button class="btn-mic" id="mic-btn" onclick="toggleVoiceRecognition()" title="Dictée vocale">🎤</button>
+                <button class="btn-send" onclick="sendMessage()">Envoyer</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    let sessions = JSON.parse(localStorage.getItem('jupiterSessions')) || [{ id: '1', title: 'Nouvelle discussion', history: [], domain: 'general' }];
+    let currentSessionId = localStorage.getItem('jupiterCurrentSession') || sessions[0].id;
+    let globalSettings = JSON.parse(localStorage.getItem('jupiterGlobal')) || { apiKey: '', version: 'gemini-3.6-flash' };
+    
+    // Auto-correction des modèles obsolètes sauvegardés dans le LocalStorage
+    if (globalSettings.version === 'gemini-2.5-pro' || globalSettings.version === 'gemini-1.5-pro') {
+        globalSettings.version = 'gemini-3.1-pro-preview';
+    }
+    if (globalSettings.apiKey) document.getElementById('api-key').value = globalSettings.apiKey;
+    document.getElementById('version-selector').value = globalSettings.version || 'gemini-3.6-flash';
+
+    let attachedImageBase64 = null;
+    let attachedDocumentText = null;
+    let attachedFileName = null;
+    let recognition = null;
+    let isListening = false;
+
+    function getCurrentSession() {
+        return sessions.find(s => s.id === currentSessionId) || sessions[0];
+    }
+
+    function saveAll() {
+        localStorage.setItem('jupiterSessions', JSON.stringify(sessions));
+        localStorage.setItem('jupiterCurrentSession', currentSessionId);
+        localStorage.setItem('jupiterGlobal', JSON.stringify(globalSettings));
+    }
+
+    renderSidebar();
+    loadCurrentSessionUI();
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const userInputElement = document.getElementById('user-input');
+        if (userInputElement) {
+            userInputElement.addEventListener('keypress', function(event) {
+                if (event.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+        }
+    });
+
+    function renderSidebar() {
+        const list = document.getElementById('chat-list');
+        list.innerHTML = '';
+        sessions.forEach(s => {
+            const div = document.createElement('div');
+            div.className = `chat-item ${s.id === currentSessionId ? 'active' : ''}`;
+            div.innerHTML = `<span>${s.title}</span> <button onclick="deleteSession(event, '${s.id}')">🗑️</button>`;
+            div.onclick = () => switchSession(s.id);
+            list.appendChild(div);
+        });
+    }
+
+    function createNewChat() {
+        const newId = Date.now().toString();
+        sessions.unshift({ id: newId, title: 'Nouvelle discussion', history: [], domain: 'general' });
+        currentSessionId = newId;
+        saveAll();
+        renderSidebar();
+        loadCurrentSessionUI();
+    }
+
+    function switchSession(id) {
+        currentSessionId = id;
+        saveAll();
+        renderSidebar();
+        loadCurrentSessionUI();
+    }
+
+    function deleteSession(e, id) {
+        e.stopPropagation();
+        if (sessions.length <= 1) {
+            alert("Impossible de supprimer la dernière discussion.");
+            return;
+        }
+        sessions = sessions.filter(s => s.id !== id);
+        if (currentSessionId === id) currentSessionId = sessions[0].id;
+        saveAll();
+        renderSidebar();
+        loadCurrentSessionUI();
+    }
+
+    function loadCurrentSessionUI() {
+        const session = getCurrentSession();
+        document.getElementById('domain-selector').value = session.domain || 'general';
+        const historyContainer = document.getElementById('chat-history');
+        historyContainer.innerHTML = '';
+        session.history.forEach(msg => {
+            appendMessageToDOM(msg.content, msg.role === 'user' ? 'user-msg' : 'bot-msg', msg.role === 'model' || msg.role === 'assistant', msg.image, msg.docName);
+        });
+        updateTokenCount();
+    }
+
+    function updateDomain(domain) {
+        getCurrentSession().domain = domain;
+        saveAll();
+    }
+
+    function saveApiKey(key) {
+        globalSettings.apiKey = key.trim();
+        saveAll();
+    }
+
+    function updateVersion(version) {
+        globalSettings.version = version;
+        saveAll();
+    }
+
+    function updateTokenCount() {
+        const session = getCurrentSession();
+        const totalChars = session.history.reduce((acc, curr) => acc + curr.content.length, 0);
+        document.getElementById('token-counter').textContent = `🪙 ~${Math.round(totalChars / 4)} tokens`;
+    }
+
+    /* --- GESTION DES FICHIERS ET IMAGES --- */
+
+    function processImage(file, maxWidth = 1024, maxHeight = 1024, quality = 0.85) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = (event) => {
+                const img = new Image();
+                img.src = event.target.result;
+                img.onload = () => {
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > maxWidth || height > maxHeight) {
+                        if (width / height > maxWidth / maxHeight) {
+                            height = Math.round((height * maxWidth) / width);
+                            width = maxWidth;
+                        } else {
+                            width = Math.round((width * maxHeight) / height);
+                            height = maxHeight;
+                        }
+                    }
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    const resizedBase64 = canvas.toDataURL('image/jpeg', quality);
+                    resolve(resizedBase64);
+                };
+                img.onerror = (err) => reject(err);
+            };
+            reader.onerror = (err) => reject(err);
+        });
+    }
+
+    function readPdfText(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsArrayBuffer(file);
+            reader.onload = async (event) => {
+                try {
+                    const typedarray = new Uint8Array(event.target.result);
+                    const pdf = await pdfjsLib.getDocument(typedarray).promise;
+                    let extractedText = "";
+                    for (let i = 1; i <= pdf.numPages; i++) {
+                        const page = await pdf.getPage(i);
+                        const content = await page.getTextContent();
+                        const pageStrings = content.items.map(item => item.str);
+                        extractedText += `--- Page ${i} ---\n` + pageStrings.join(" ") + "\n\n";
+                    }
+                    resolve(extractedText);
+                } catch (err) {
+                    reject(err);
+                }
+            };
+            reader.onerror = (err) => reject(err);
+        });
+    }
+
+    function readPlainText(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsText(file);
+            reader.onload = (e) => resolve(e.target.result);
+            reader.onerror = (e) => reject(e);
+        });
+    }
+
+    async function handleFileSelection(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        clearAttachedFile();
+        attachedFileName = file.name;
+
+        if (file.type.startsWith('image/')) {
+            try {
+                attachedImageBase64 = await processImage(file);
+                document.getElementById('image-preview').src = attachedImageBase64;
+                document.getElementById('image-preview').style.display = 'block';
+                document.getElementById('img-tools-bar').style.display = 'flex';
+                document.getElementById('document-icon').style.display = 'none';
+            } catch (error) {
+                alert("Erreur de traitement de l'image.");
+            }
+        } else if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
+            try {
+                attachedDocumentText = await readPdfText(file);
+                document.getElementById('document-icon').textContent = '📄';
+                document.getElementById('document-icon').style.display = 'flex';
+                document.getElementById('image-preview').style.display = 'none';
+                document.getElementById('img-tools-bar').style.display = 'none';
+            } catch (error) {
+                alert("Erreur lors de la lecture du fichier PDF.");
+            }
+        } else {
+            try {
+                attachedDocumentText = await readPlainText(file);
+                document.getElementById('document-icon').textContent = '📝';
+                document.getElementById('document-icon').style.display = 'flex';
+                document.getElementById('image-preview').style.display = 'none';
+                document.getElementById('img-tools-bar').style.display = 'none';
+            } catch (error) {
+                alert("Erreur lors de la lecture du fichier texte.");
+            }
+        }
+
+        document.getElementById('file-name').textContent = file.name;
+        document.getElementById('file-preview-container').style.display = 'flex';
+    }
+
+    function applyImageEffect(effect) {
+        if (!attachedImageBase64) return;
+
+        const img = new Image();
+        img.src = attachedImageBase64;
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+
+            if (effect === 'rotate') {
+                canvas.width = img.height;
+                canvas.height = img.width;
+                ctx.translate(canvas.width / 2, canvas.height / 2);
+                ctx.rotate((90 * Math.PI) / 180);
+                ctx.drawImage(img, -img.width / 2, -img.height / 2);
+            } else {
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+
+                if (effect === 'grayscale') {
+                    for (let i = 0; i < data.length; i += 4) {
+                        const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+                        data[i] = avg;
+                        data[i + 1] = avg;
+                        data[i + 2] = avg;
+                    }
+                } else if (effect === 'invert') {
+                    for (let i = 0; i < data.length; i += 4) {
+                        data[i] = 255 - data[i];
+                        data[i + 1] = 255 - data[i + 1];
+                        data[i + 2] = 255 - data[i + 2];
+                    }
+                }
+                ctx.putImageData(imageData, 0, 0);
+            }
+
+            attachedImageBase64 = canvas.toDataURL('image/jpeg', 0.85);
+            document.getElementById('image-preview').src = attachedImageBase64;
+        };
+    }
+
+    function clearAttachedFile() {
+        attachedImageBase64 = null;
+        attachedDocumentText = null;
+        attachedFileName = null;
+        document.getElementById('file-input').value = '';
+        document.getElementById('file-preview-container').style.display = 'none';
+    }
+
+    function sendQuickMessage(text) {
+        document.getElementById('user-input').value = text;
+        sendMessage();
+    }
+
+    async function sendMessage() {
+        const inputElement = document.getElementById('user-input');
+        const text = inputElement.value.trim();
+        if (!text && !attachedImageBase64 && !attachedDocumentText) return;
+
+        const apiKey = globalSettings.apiKey;
+        if (!apiKey) {
+            alert("Veuillez d'abord entrer votre clé API Gemini dans le champ prévu en haut de l'interface.");
+            return;
+        }
+
+        const session = getCurrentSession();
+        
+        if (session.history.length === 0) {
+            session.title = text.length > 20 ? text.substring(0, 20) + '...' : (attachedFileName || 'Nouvelle discussion');
+            renderSidebar();
+        }
+
+        let fullPromptText = text;
+        if (attachedDocumentText) {
+            fullPromptText += `\n\n--- CONTENU DU DOCUMENT JOINT (${attachedFileName}) ---\n` + attachedDocumentText;
+        }
+
+        const userMsg = { role: 'user', content: text, image: attachedImageBase64, docName: attachedFileName };
+        session.history.push(userMsg);
+        appendMessageToDOM(text, 'user-msg', false, attachedImageBase64, attachedFileName);
+
+        inputElement.value = '';
+        const currentImage = attachedImageBase64;
+        const currentDocText = attachedDocumentText;
+        clearAttachedFile();
+        saveAll();
+        updateTokenCount();
+
+        const historyContainer = document.getElementById('chat-history');
+        const loadingDiv = document.createElement('div');
+        loadingDiv.className = 'message bot-msg';
+        loadingDiv.id = 'loading-msg';
+        loadingDiv.textContent = "Jupiter réfléchit...";
+        historyContainer.appendChild(loadingDiv);
+        historyContainer.scrollTop = historyContainer.scrollHeight;
+
+        try {
+            const contents = session.history.slice(0, -1).map(msg => ({
+                role: msg.role === 'user' ? 'user' : 'model',
+                parts: [{ text: msg.content }]
+            }));
+
+            const currentParts = [{ text: fullPromptText }];
+            if (currentImage) {
+                const base64Data = currentImage.split(',')[1];
+                const mimeType = currentImage.match(/data:(.*?);base64/)[1];
+                currentParts.push({
+                    inline_data: { mime_type: mimeType, data: base64Data }
+                });
+            }
+            contents.push({ role: 'user', parts: currentParts });
+
+            let selectedModel = globalSettings.version || 'gemini-3.6-flash';
+            let endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`;
+
+            let response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    system_instruction: {
+                        parts: [{ text: "Utilise toujours le formatage LaTeX pour les formules mathématiques. Utilise $...$ pour les formules inline et $$...$$ pour les équations centrées." }]
+                    },
+                    contents: contents 
+                })
+            });
+
+            let data = await response.json();
+
+            // Basculement automatique vers gemini-3.6-flash en cas de limite de quota
+            if (response.status === 429 || response.status === 503 || (data.error && (data.error.message.includes("quota") || data.error.message.includes("high demand")))) {
+                console.warn("Limite de quota atteinte. Basculement sur le modèle secours gemini-3.6-flash...");
+                
+                const loadingElem = document.getElementById('loading-msg');
+                if (loadingElem) loadingElem.textContent = "Quota atteint sur le modèle principal. Basculement sur gemini-3.6-flash...";
+
+                const fallbackModel = 'gemini-3.6-flash';
+                endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${fallbackModel}:generateContent?key=${apiKey}`;
+                
+                response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: contents })
+                });
+                
+                data = await response.json();
+            }
+
+            const loadingElem = document.getElementById('loading-msg');
+            if (loadingElem) loadingElem.remove();
+
+            if (data.candidates && data.candidates[0].content) {
+                const botReply = data.candidates[0].content.parts[0].text;
+                session.history.push({ role: 'model', content: botReply, image: null });
+                appendMessageToDOM(botReply, 'bot-msg', true, null);
+            } else {
+                throw new Error(data.error?.message || "Les serveurs de Google sont momentanément indisponibles ou la limite de quota gratuit a été atteinte.");
+            }
+            
+            saveAll();
+            updateTokenCount();
+
+        } catch (error) {
+            const loadingElem = document.getElementById('loading-msg');
+            if (loadingElem) loadingElem.remove();
+            
+            const errorMsg = "Erreur de connexion : " + error.message;
+            appendMessageToDOM(errorMsg, 'bot-msg', false, null);
+        }
+    }
+
+    function appendMessageToDOM(text, className, isBot = false, imageSrc = null, docName = null) {
+        const historyContainer = document.getElementById('chat-history');
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `message ${className}`;
+
+        let contentHtml = '';
+        if (imageSrc) {
+            contentHtml += `<img src="${imageSrc}" style="max-width: 100%; border-radius: 6px; margin-bottom: 6px; display: block;" />`;
+        }
+        if (docName) {
+            contentHtml += `<div style="font-size: 11px; opacity: 0.8; margin-bottom: 4px;">📂 Document joint : <strong>${docName}</strong></div>`;
+        }
+
+        if (isBot) {
+            if (typeof marked !== 'undefined') {
+                contentHtml += marked.parse(text);
+            } else {
+                contentHtml += text.replace(/\n/g, '<br>');
+            }
+        } else {
+            contentHtml += text.replace(/\n/g, '<br>');
+        }
+        
+        msgDiv.innerHTML = contentHtml;
+        historyContainer.appendChild(msgDiv);
+        historyContainer.scrollTop = historyContainer.scrollHeight;
+
+        if (window.MathJax) {
+            MathJax.typesetPromise([msgDiv]);
+        }
+    }
+
+    function toggleVoiceRecognition() {
+        if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+            alert("La reconnaissance vocale n'est pas supportée par votre navigateur.");
+            return;
+        }
+        const micBtn = document.getElementById('mic-btn');
+        if (isListening) {
+            if (recognition) recognition.stop();
+            return;
+        }
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        recognition = new SpeechRecognition();
+        recognition.lang = 'fr-FR';
+        recognition.onstart = () => { isListening = true; micBtn.classList.add('listening-mode'); };
+        recognition.onresult = (event) => { document.getElementById('user-input').value = event.results[0][0].transcript; };
+        recognition.onerror = () => stopListeningState();
+        recognition.onend = () => stopListeningState();
+        recognition.start();
+    }
+
+    function stopListeningState() {
+        isListening = false;
+        const micBtn = document.getElementById('mic-btn');
+        if (micBtn) micBtn.classList.remove('listening-mode');
+    }
+
+    function exportHistory() {
+        const session = getCurrentSession();
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(session, null, 2));
+        const downloadAnchor = document.createElement('a');
+        downloadAnchor.setAttribute("href", dataStr);
+        downloadAnchor.setAttribute("download", `jupiter_export.json`);
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+        downloadAnchor.remove();
+    }
+</script>
+</body>
+</html>
